@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>北交打新记账本</title>
+  <link rel="manifest" href="./manifest.json">
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Dexie.js CDN -->
+  <script src="https://unpkg.com/dexie@3/dist/dexie.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-lg">
+    
+    <!-- 头部 -->
+    <header class="bg-blue-600 text-white p-4 sticky top-0 z-10">
+      <h1 class="text-lg font-bold mb-2">北交打新记账本</h1>
+      <div class="flex gap-2">
+        <button @click="activeTab='转账记录'" class="flex-1 py-1 rounded text-sm font-medium active:bg-blue-100" :class="activeTab==='转账记录'?'bg-yellow-300 text-blue-800':'bg-white text-blue-600'">转账记录</button>
+        <button @click="activeTab='资金记录'" class="flex-1 py-1 rounded text-sm font-medium active:bg-blue-100" :class="activeTab==='资金记录'?'bg-yellow-300 text-blue-800':'bg-white text-blue-600'">资金记录</button>
+        <button @click="activeTab='投资'" class="flex-1 py-1 rounded text-sm font-medium active:bg-blue-100" :class="activeTab==='投资'?'bg-yellow-300 text-blue-800':'bg-white text-blue-600'">投资</button>
+        <button @click="activeTab='收益'" class="flex-1 py-1 rounded text-sm font-medium active:bg-blue-100" :class="activeTab==='收益'?'bg-yellow-300 text-blue-800':'bg-white text-blue-600'">收益</button>
+      </div>
+    </header>
+
+    <!-- 录入表单 -->
+    <div class="p-4 border-b space-y-3">
+
+      <!-- 投资表单 -->
+      <template v-if="activeTab==='投资'">
+        <div class="flex gap-2">
+          <input v-model="investForm.date" type="date" class="border p-2 rounded w-36 shrink-0">
+          <input v-model="investForm.stockName" @focus="onFocusStockName" @blur="onBlurStockName" @input="loadRecentInvest(investForm.stockName)" placeholder="新股名称/代码" list="stockList" class="border p-2 rounded flex-[4] min-w-0">
+          <datalist id="stockList">
+            <option v-for="s in stockNameList" :key="s" :value="s">{{ s }}</option>
+          </datalist>
+          <div class="flex-[1]"></div>
+          <input v-model.number="investForm.stockPrice" type="text" inputmode="decimal" placeholder="发行价格" class="border p-2 rounded w-20 shrink-0">
+        </div>
+        <div v-for="(p, i) in persons" :key="i" class="grid grid-cols-6 gap-1 items-center">
+          <span class="text-sm text-center truncate">{{ p }}</span>
+          <input v-model.number="investForm.amounts[i]" type="number" placeholder="金额" class="border p-2 rounded w-full text-center text-sm">
+          <span class="text-sm text-gray-500 text-center">万元</span>
+          <span class="text-sm text-gray-500 text-center">中签</span>
+          <input v-model.number="investForm.shares[i]" type="number" step="100" min="0" class="border p-2 rounded w-full text-center text-sm">
+          <span class="text-sm text-gray-500 text-center">股</span>
+        </div>
+        <div class="text-right font-bold text-base">投资总金额：{{ totalInvestAmount.toFixed(2) }} 万元</div>
+        <button @click="submitInvest" class="w-full bg-blue-600 text-white py-2 rounded active:bg-blue-700">提交</button>
+      </template>
+
+      <!-- 转账记录表单 -->
+      <template v-if="activeTab==='转账记录'">
+        <div class="flex items-center gap-2">
+          <select v-model="fundFlowForm.from" class="border p-2 rounded flex-1">
+            <option v-for="p in persons" :key="p" :value="p">{{ p }}</option>
+          </select>
+          <span class="text-sm whitespace-nowrap">转给</span>
+          <select v-model="fundFlowForm.to" class="border p-2 rounded flex-1">
+            <option v-for="p in persons" :key="p" :value="p">{{ p }}</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <input v-model.number="fundFlowForm.amount" type="number" placeholder="金额（万元）" class="border p-2 rounded flex-1">
+          <input v-model="fundFlowForm.date" type="date" class="border p-2 rounded w-36">
+        </div>
+        <button @click="addFundFlow" class="w-full bg-blue-600 text-white py-2 rounded active:bg-blue-700">记一笔</button>
+        <div class="flex gap-2">
+          <button @click="exportFundFlows" class="flex-1 bg-green-600 text-white py-2 rounded active:bg-green-700">导出记录</button>
+          <button @click="importFundFlows" class="flex-1 bg-orange-600 text-white py-2 rounded active:bg-orange-700">导入记录</button>
+        </div>
+      </template>
+
+      <!-- 资金记录表单 -->
+      <template v-if="activeTab==='资金记录'">
+        <div class="flex flex-wrap gap-2">
+          <button v-for="p in persons" :key="p" @click="selectedPerson=p" class="flex-1 py-2 rounded text-sm font-medium" :class="selectedPerson===p?'bg-blue-600 text-white':'bg-gray-200 text-gray-700'">{{ p }}</button>
+        </div>
+      </template>
+
+      <!-- 收益表单 -->
+      <template v-if="activeTab==='收益'">
+        <div class="space-y-2">
+          <div class="flex gap-2">
+            <input v-model="returnForm.date" type="date" class="border p-2 rounded w-36 shrink-0">
+            <select v-model="returnForm.stockName" @change="onReturnStockChange" class="border p-2 rounded flex-1 min-w-0">
+              <option value="" disabled selected>选择新股名称</option>
+              <option v-for="s in stockNameList" :key="s" :value="s">{{ s }}</option>
+            </select>
+          </div>
+          <template v-if="selectedBatch">
+            <div class="grid grid-cols-4 gap-1 text-sm font-bold text-center py-1 border-b">
+              <span>投资者</span><span>卖出</span><span>收益</span>
+              <button @click="addSaleRow" class="text-blue-600 font-bold text-lg leading-none">+</button>
+            </div>
+            <div v-for="(sale, i) in returnForm.sales" :key="i" class="grid grid-cols-4 gap-1 items-center">
+              <select v-model="sale.person" class="border p-1 rounded text-sm w-full">
+                <option value="" disabled>选择</option>
+                <option v-for="p in persons" :key="p" :value="p">{{ p }}</option>
+              </select>
+              <input v-model.number="sale.shares" type="number" step="100" :max="getPersonShares(sale.person)" min="0" class="border p-1 rounded text-sm w-full text-center">
+              <input v-model.number="sale.gain" type="number" placeholder="收益" class="border p-1 rounded text-sm w-full text-center">
+              <button @click="removeSaleRow(i)" class="text-red-500 font-bold text-lg leading-none">-</button>
+            </div>
+            <template v-if="returnForm.sales.length > 0">
+              <div class="grid grid-cols-4 gap-1 text-sm text-center py-1 border-t">
+                <span class="text-gray-500">总收益</span><span class="font-bold">{{ (totalGain || 0).toFixed(2) }}</span>
+                <span class="text-gray-500">总投入</span><span class="font-bold">{{ totalInvestment || 0 }}</span>
+              </div>
+              <div class="text-sm text-center text-gray-500 pb-1">
+                每万元收益：<span class="font-bold">{{ (averageGain || 0).toFixed(8) }}</span>
+              </div>
+              <div class="border-t pt-1">
+                <div class="grid grid-cols-4 gap-1 text-sm font-bold text-center py-1">
+                  <span>投资者</span><span>投资金额</span><span>收益</span><span>结算</span>
+                </div>
+                <div v-for="pr in personReturns" :key="pr.person" class="grid grid-cols-4 gap-1 text-sm text-center py-1 items-center">
+                  <span>{{ pr.person }}</span><span>{{ pr.investment || 0 }}</span><span>{{ (pr.gain || 0).toFixed(2) }}</span>
+                  <span>{{ (pr.settlement || 0).toFixed(2) }}</span>
+                </div>
+              </div>
+              <button @click="submitReturn" class="w-full bg-blue-600 text-white py-2 rounded active:bg-blue-700">提交收益</button>
+            </template>
+          </template>
+        </div>
+      </template>
+
+    </div>
+
+    <!-- 记录列表 -->
+    <div class="p-4 space-y-2">
+
+      <!-- 投资记录 -->
+      <template v-if="activeTab==='投资'">
+        <div v-for="batch in investBatches" :key="batch.id" class="bg-gray-50 p-3 rounded">
+          <div class="flex justify-between items-center">
+            <div class="font-bold text-sm">{{ batch.stockName }} <span v-if="batch.stockPrice" class="text-xs text-gray-500 font-normal">发行价格 {{ batch.stockPrice }}</span></div>
+            <div class="text-xs text-gray-500">{{ batch.date }}</div>
+          </div>
+          <div v-for="d in batch.details" :key="d.person" class="flex justify-between text-sm mt-1">
+            <span>{{ d.person }}</span>
+            <span>{{ d.amount }} 万元 <template v-if="d.shares">/ {{ d.shares }}股</template></span>
+          </div>
+          <div class="flex justify-between items-center mt-2 pt-1 border-t text-xs text-gray-500">
+            <span>合计</span>
+            <span class="font-bold text-sm">{{ batch.total }} 万元</span>
+          </div>
+          <button @click="deleteInvestBatch(batch.id)" class="text-xs text-red-400 mt-2">删除</button>
+        </div>
+        <div v-if="investBatches.length===0" class="text-center text-gray-400 py-8">暂无记录</div>
+      </template>
+
+      <!-- 转账记录记录 -->
+      <template v-if="activeTab==='转账记录'">
+        <div v-for="item in fundFlows" :key="item.id" class="bg-gray-50 p-3 rounded">
+          <template v-if="editingFundFlowId === item.id">
+            <div class="space-y-2">
+              <div class="flex items-center gap-2">
+                <select v-model="editForm.from" class="border p-1 rounded text-sm flex-1">
+                  <option v-for="p in persons" :key="p" :value="p">{{ p }}</option>
+                </select>
+                <span class="text-xs text-gray-500">→</span>
+                <select v-model="editForm.to" class="border p-1 rounded text-sm flex-1">
+                  <option v-for="p in persons" :key="p" :value="p">{{ p }}</option>
+                </select>
+              </div>
+              <div class="flex gap-2 items-center">
+                <input v-model="editForm.date" type="date" class="border p-1 rounded text-sm flex-1">
+                <input v-model.number="editForm.amount" type="number" placeholder="金额" class="border p-1 rounded text-sm w-24">
+                <span class="text-xs">万元</span>
+              </div>
+              <input v-model="editForm.remark" placeholder="备注" class="border p-1 rounded text-sm w-full">
+              <div class="flex gap-2 justify-end">
+                <button @click="saveEditFundFlow" class="text-xs bg-blue-600 text-white px-3 py-1 rounded">保存</button>
+                <button @click="cancelEditFundFlow" class="text-xs bg-gray-300 text-gray-700 px-3 py-1 rounded">取消</button>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="flex justify-between items-center">
+              <div>
+                <div class="font-bold">
+                  <template v-if="item.from===item.to">{{ item.from }} <span class="text-xs" :class="item.amount>=0?'text-green-600':'text-red-600'">{{ item.amount>=0 ? '本金增加' : '本金减少' }}</span></template>
+                  <template v-else>{{ item.from }} <span class="text-xs text-gray-500">→</span> {{ item.to }}</template>
+                </div>
+                <div class="text-xs text-gray-500">{{ item.date }}</div>
+                <div v-if="item.remark" class="text-xs text-gray-400">备注: {{ item.remark }}</div>
+              </div>
+              <div class="text-right">
+                <div>{{ Math.abs(item.amount) }} 万元</div>
+                <div class="flex gap-2 justify-end mt-1">
+                  <button @click="startEditFundFlow(item)" class="text-xs text-blue-400">修改</button>
+                  <button @click="deleteFundFlow(item.id)" class="text-xs text-red-400">删除</button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div v-if="fundFlows.length===0" class="text-center text-gray-400 py-8">暂无记录</div>
+      </template>
+
+      <!-- 资金记录列表 -->
+      <template v-if="activeTab==='资金记录'">
+        <template v-if="!selectedPerson">
+          <div class="text-center text-gray-400 py-8">请选择上方人员查看资金变动</div>
+        </template>
+        <template v-else-if="personFundRecords.length===0">
+          <div class="text-center text-gray-400 py-8">暂无资金变动记录</div>
+        </template>
+        <template v-else>
+          <div class="text-xs text-gray-500 mb-2 px-1">当前余额：<span class="font-bold text-base" :class="personFundRecords[0].balance>=0?'text-green-600':'text-red-600'">{{ personFundRecords[0].balance.toFixed(2) }} 万元</span></div>
+          <div v-for="(r, i) in personFundRecords" :key="i" class="flex justify-between items-center bg-gray-50 p-3 rounded">
+            <div>
+              <div class="text-xs text-gray-500">{{ r.date }}</div>
+              <div class="text-sm" v-if="r.isSelf">{{ r.change >= 0 ? '本金增加' : '本金减少' }}</div>
+              <div class="text-sm" v-else>{{ r.isIn ? '从' : '转给' }} {{ r.counterparty }}</div>
+              <div v-if="r.remark" class="text-xs text-gray-400">备注: {{ r.remark }}</div>
+            </div>
+            <div class="text-right">
+              <div :class="r.change>=0?'text-green-600':'text-red-600'" class="font-bold">{{ r.change>=0?'+':'' }}{{ r.change.toFixed(2) }}</div>
+              <div class="text-xs text-gray-400">余额: {{ r.balance.toFixed(2) }}</div>
+            </div>
+          </div>
+        </template>
+      </template>
+
+      <!-- 收益记录 -->
+      <template v-if="activeTab==='收益'">
+        <div v-for="r in returnRecords" :key="r.id" class="bg-gray-50 p-3 rounded">
+          <div class="flex justify-between items-center">
+            <div class="font-bold text-sm">{{ r.stockName }}</div>
+            <div class="text-xs text-gray-500">{{ r.date }}</div>
+          </div>
+          <div class="text-sm mt-1">
+             总收益：<span class="font-bold" :class="(r.totalGain||0)>=0?'text-green-600':'text-red-600'">{{ (r.totalGain||0).toFixed(2) }}</span>
+            <span class="text-gray-500 ml-2">总投入：{{ r.totalInvestment }}  每万元收益：{{ (r.averageGain||0).toFixed(4) }}</span>
+          </div>
+          <div v-for="s in r.sales" :key="s.person+s.shares" class="text-xs text-gray-600 mt-1 flex justify-between">
+            <span>{{ s.person }} {{ s.shares }}股</span>
+            <span>收益 {{ (s.gain||0).toFixed(2) }}</span>
+          </div>
+          <div v-for="pp in r.perPerson" :key="pp.person" class="flex justify-between text-xs mt-1 text-gray-600 border-t pt-1">
+            <span>{{ pp.person }} 投资 {{ pp.investment }}</span>
+            <span>收益 {{ (pp.gain||0).toFixed(2) }} 结算 {{ (pp.settlement||0).toFixed(2) }}</span>
+          </div>
+          <button @click="deleteReturnRecord(r.id)" class="text-xs text-red-400 mt-2">删除</button>
+        </div>
+        <div v-if="returnRecords.length===0" class="text-center text-gray-400 py-8">暂无记录</div>
+      </template>
+
+    </div>
+
+    <!-- 导入解析弹窗 -->
+    <div v-if="showImportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20" @click.self="cancelImportResolve">
+      <div class="bg-white rounded-lg p-4 w-11/12 max-w-sm shadow-xl">
+        <h3 class="font-bold text-lg mb-3">发现新人员</h3>
+        <div v-for="(unk, i) in importUnknownNames" :key="i" class="mb-4 pb-2 border-b last:border-b-0">
+          <div class="font-medium text-sm mb-1">{{ unk.name }}</div>
+          <div class="flex flex-wrap gap-2 items-center">
+            <label class="text-sm whitespace-nowrap"><input type="radio" :name="'act-'+i" value="add" v-model="unk.action" class="mr-1">增加</label>
+            <label class="text-sm whitespace-nowrap flex items-center gap-1"><input type="radio" :name="'act-'+i" value="merge" v-model="unk.action">合并到</label>
+            <select v-model="unk.mergeTarget" class="border p-1 rounded text-sm" v-if="unk.action==='merge'">
+              <option v-for="p in persons" :key="p" :value="p">{{ p }}</option>
+            </select>
+          </div>
+        </div>
+        <button @click="confirmImportResolve" class="w-full bg-blue-600 text-white py-2 rounded mt-2">确认</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
