@@ -14,9 +14,9 @@ createApp({
     const fundFlows = ref([]);
     const activeTab = ref('投资');
     const today = () => new Date().toISOString().slice(0, 10);
-    const fundFlowForm = ref({ from: '金珠丹', to: '刘慧', amount: null, date: today() });
+    const fundFlowForm = ref({ from: '金珠丹', to: '叶尚军', amount: null, date: today() });
     const selectedPerson = ref(null);
-    const persons = ref(['金珠丹', '刘慧', '陈屹', '邵霆']);
+    const persons = ref(['金珠丹', '叶尚军', '陈屹', '邵霆']);
     const savedPersons = localStorage.getItem('investPersons');
     if (savedPersons) persons.value = JSON.parse(savedPersons);
     const savePersons = () => localStorage.setItem('investPersons', JSON.stringify(persons.value));
@@ -86,7 +86,7 @@ createApp({
       await db.fundFlows.add({
         from, to, amount, date: fundFlowForm.value.date
       });
-      fundFlowForm.value = { from: '金珠丹', to: '刘慧', amount: null, date: today() };
+      fundFlowForm.value = { from: '金珠丹', to: '叶尚军', amount: null, date: today() };
       await loadFundFlows();
     };
     const deleteFundFlow = async (id) => {
@@ -345,7 +345,38 @@ createApp({
       returnRecords.value.sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id);
     };
 
+    const renameInDB = async (fromName, toName) => {
+      const key = `rename_${fromName}_to_${toName}`;
+      if (localStorage.getItem(key)) return;
+      const allFundFlows = await db.fundFlows.toArray();
+      for (const f of allFundFlows) {
+        if (f.from === fromName || f.to === fromName) {
+          await db.fundFlows.update(f.id, { from: f.from === fromName ? toName : f.from, to: f.to === fromName ? toName : f.to });
+        }
+      }
+      const allBatches = await db.investBatches.toArray();
+      for (const b of allBatches) {
+        let changed = false;
+        const details = b.details.map(d => { if (d.person === fromName) { changed = true; return { ...d, person: toName }; } return d; });
+        if (changed) await db.investBatches.update(b.id, { details });
+      }
+      const allTrades = await db.trades.toArray();
+      for (const t of allTrades) {
+        if (t.Person === fromName) await db.trades.update(t.id, { Person: toName });
+      }
+      const allReturns = await db.returns.toArray();
+      for (const r of allReturns) {
+        let changed = false;
+        const sales = r.sales.map(s => { if (s.person === fromName) { changed = true; return { ...s, person: toName }; } return s; });
+        const perPerson = r.perPerson.map(p => { if (p.person === fromName) { changed = true; return { ...p, person: toName }; } return p; });
+        if (changed) await db.returns.update(r.id, { sales, perPerson });
+      }
+      localStorage.setItem(key, '1');
+    };
+
     onMounted(async () => {
+      await Promise.all([loadFundFlows(), loadInvestBatches(), loadReturnRecords()]);
+      await renameInDB('刘慧', '叶尚军');
       await Promise.all([loadFundFlows(), loadInvestBatches(), loadReturnRecords()]);
     });
 
