@@ -2,12 +2,14 @@ const { createApp, ref, computed, onMounted } = Vue;
 
 // ========== 数据库层 ==========
 const db = new Dexie('InvestDB');
-db.version(8).stores({
-  trades: '++id, StockName',
+db.version(9).stores({
   fundFlows: '++id, from, to, amount, date',
   investBatches: '++id, date',
   returns: '++id, stockName, date'
 });
+// fundFlows: 资金转账流水（from转出人, to转入人, amount金额, date日期, remark备注）
+// investBatches: 打新批次（stockName, stockPrice发行价, details[{person,amount,shares}], total总额, date日期）
+// returns: 收益结算记录（sales[{person,shares,gain}], totalGain总收益, averageGain每万元收益, perPerson[{person,investment,gain,settlement}]）
 
 createApp({
   setup() {
@@ -53,7 +55,7 @@ createApp({
     const personFundRecords = computed(() => {
       const person = selectedPerson.value;
       if (!person) return [];
-      const flows = fundFlows.value.filter(f => f.from === person || f.to === person);
+      const flows = fundFlows.value.filter(f => (f.from === person || f.to === person) && !(f.remark && f.remark.startsWith('北交打新:')));
       flows.sort((a, b) => new Date(a.date) - new Date(b.date));
       let balance = 0;
       const result = flows.map(f => {
@@ -288,13 +290,6 @@ createApp({
       for (const d of details) {
         await db.fundFlows.add({ from: d.person, to: d.person, amount: d.amount, date, remark: `北交打新: ${stockName}` });
       }
-      const existingTrades = await db.trades.where('StockName').equals(stockName).toArray();
-      if (existingTrades.length > 0) await db.trades.bulkDelete(existingTrades.map(t => t.id));
-      for (const d of details) {
-        if (d.shares > 0) {
-          await db.trades.add({ StockName: stockName, TradePrice: stockPrice, amount: d.shares, date, action: '买入', Person: d.person });
-        }
-      }
       investForm.value = { date: today(), stockName: '', stockPrice: null, amounts: persons.value.map(p => 0), shares: persons.value.map(p => 0) };
       await Promise.all([loadInvestBatches(), loadFundFlows()]);
     };
@@ -319,6 +314,9 @@ createApp({
         returnForm.value.date = prev.date;
       } else {
         returnForm.value.sales = [];
+        if (selectedBatch.value) {
+          returnForm.value.sales = selectedBatch.value.details.map(d => ({ person: d.person, shares: d.shares || 0, gain: 0 }));
+        }
       }
     };
     const submitReturn = async () => {
@@ -359,10 +357,6 @@ createApp({
         let changed = false;
         const details = b.details.map(d => { if (d.person === fromName) { changed = true; return { ...d, person: toName }; } return d; });
         if (changed) await db.investBatches.update(b.id, { details });
-      }
-      const allTrades = await db.trades.toArray();
-      for (const t of allTrades) {
-        if (t.Person === fromName) await db.trades.update(t.id, { Person: toName });
       }
       const allReturns = await db.returns.toArray();
       for (const r of allReturns) {

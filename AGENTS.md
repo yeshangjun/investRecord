@@ -20,9 +20,8 @@ python3 -m http.server 8080
 
 ## Database
 
-IndexedDB via Dexie (`InvestDB`, version 8):
+IndexedDB via Dexie (`InvestDB`, version 9):
 
-- **`trades`** — legacy investment trades (unused in UI): `++id, StockName`
 - **`fundFlows`** — transfer records: `++id, from, to, amount, date`. The `remark` field (for merge tracking) is stored on records but not indexed.
 - **`investBatches`** — new-stock investment batches: `++id, date`. Each batch stores `date`, `stockName`, `stockPrice`, `details` (array of `{person, amount, shares}`), and `total`.
 - **`returns`** — return/profit records: `++id, stockName, date`. Each record stores `stockName`, `date`, `sales` (array of `{person, shares, amount, gain}`), `totalGain`, `totalInvestment`, `averageGain`, and `perPerson` (array of `{person, investment, gain, accountFund, settlement}`).
