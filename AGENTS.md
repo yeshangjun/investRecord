@@ -1,7 +1,11 @@
 # 北交打新记账本
 
-Client-side new-stock (北交所打新) investment tracking PWA (Vue 3 + Tailwind + Dexie/IndexedDB).  
+Client-side new-stock (北交所打新) investment tracking PWA (Vue 3 + Tailwind + Dexie/IndexedDB).
 No build step, no backend, no package.json, no tests.
+
+## Version convention
+
+每次 git push 到 GitHub 时，版本号最后一位递增（如 1.1.0 → 1.1.1），方便识别版本。
 
 ## Quick start
 
