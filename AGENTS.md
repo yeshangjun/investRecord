@@ -38,3 +38,10 @@ IndexedDB via Dexie (`InvestDB`, version 9):
 - `selectedPerson` is `null` on first visit; user must tap a person button to see fund records.
 - Import/export CSV (转账记录 tab): format `日期,金额,转出人,转入人`. Import uses `Math.abs(amount)`, skips header row, prompts whether to clear existing records. If CSV contains names not in the persons list, a modal prompts to **add** them or **merge** into an existing person (merge creates a `remark` field on the record). Export includes BOM for Excel compatibility.
 - The `remark` field is displayed in both 转账记录 and 资金记录 tabs when present.
+
+## Todo List
+
+| 优先级 | 状态 | 功能 | 说明 |
+|--------|------|------|------|
+| medium | pending | 数据库整体导入导出功能（JSON 格式） | 将 fundFlows / investBatches / returns 三张表整体导出为 JSON 备份，支持从备份恢复 |
+| medium | done | 版本号功能 | 头部标题右侧显示版本号，点击弹出 readme.txt 说明 |

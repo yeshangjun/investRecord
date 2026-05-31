@@ -13,6 +13,9 @@ createApp({
   setup() {
 
     // ========== 全局状态 ==========
+    const version = '1.0.0';                                  // 当前版本号
+    const showVersionModal = ref(false);                      // 版本说明弹窗显示状态
+    const versionInfo = ref('');                              // 版本说明文本内容
     const fundFlows = ref([]);                               // 所有转账记录（内存缓存）
     const activeTab = ref('转账记录');                       // 当前激活的 tab
     const today = () => new Date().toISOString().slice(0, 10);  // 返回今天日期字符串 YYYY-MM-DD
@@ -448,6 +451,18 @@ createApp({
       localStorage.setItem(key, '1');
     };
 
+    // ========== 版本说明弹窗 ==========
+    // 点击版本号按钮时读取 readme.txt 内容并弹出说明
+    const showVersionInfo = async () => {
+      try {
+        const resp = await fetch('./readme.txt');
+        versionInfo.value = await resp.text();
+      } catch {
+        versionInfo.value = '无法读取说明文件';
+      }
+      showVersionModal.value = true;
+    };
+
     // ========== 页面初始化 ==========
     onMounted(async () => {
       // 首次加载：从 IndexedDB 读取三张表数据
@@ -503,7 +518,11 @@ createApp({
       getPersonShares,
       onReturnStockChange,
       submitReturn,
-      deleteReturnRecord
+      deleteReturnRecord,
+      version,
+      showVersionInfo,
+      showVersionModal,
+      versionInfo
     };
   }
 }).mount('#app');

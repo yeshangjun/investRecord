@@ -17,7 +17,10 @@
     
     <!-- 头部 -->
     <header class="bg-blue-600 text-white p-4 sticky top-0 z-10">
-      <h1 class="text-lg font-bold mb-2">北交打新记账本</h1>
+      <div class="flex items-center justify-between mb-2">
+        <h1 class="text-lg font-bold">北交打新记账本</h1>
+        <button @click="showVersionInfo" class="text-xs bg-blue-700 px-2 py-0.5 rounded shrink-0">v{{ version }}</button>
+      </div>
       <div class="flex gap-2">
         <button @click="activeTab='转账记录'" class="flex-1 py-1 rounded text-sm font-medium active:bg-blue-100" :class="activeTab==='转账记录'?'bg-yellow-300 text-blue-800':'bg-white text-blue-600'">转账记录</button>
         <button @click="activeTab='资金记录'" class="flex-1 py-1 rounded text-sm font-medium active:bg-blue-100" :class="activeTab==='资金记录'?'bg-yellow-300 text-blue-800':'bg-white text-blue-600'">资金记录</button>
@@ -268,6 +271,15 @@
           </div>
         </div>
         <button @click="confirmImportResolve" class="w-full bg-blue-600 text-white py-2 rounded mt-2">确认</button>
+      </div>
+    </div>
+
+    <!-- 版本说明弹窗 -->
+    <div v-if="showVersionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showVersionModal=false">
+      <div class="bg-white rounded-lg p-4 max-w-sm w-full mx-4 text-sm">
+        <h3 class="font-bold mb-2">北交打新记账本 v{{ version }}</h3>
+        <pre class="whitespace-pre-wrap text-xs text-gray-600 max-h-64 overflow-y-auto">{{ versionInfo }}</pre>
+        <button @click="showVersionModal=false" class="w-full bg-blue-600 text-white py-2 rounded mt-3">关闭</button>
       </div>
     </div>
 
