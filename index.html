@@ -75,6 +75,10 @@
           <button @click="exportFundFlows" class="flex-1 bg-green-600 text-white py-2 rounded active:bg-green-700">导出记录</button>
           <button @click="importFundFlows" class="flex-1 bg-orange-600 text-white py-2 rounded active:bg-orange-700">导入记录</button>
         </div>
+        <div class="flex gap-2">
+          <button @click="exportDB" class="flex-1 bg-purple-600 text-white py-2 rounded active:bg-purple-700">数据库导出</button>
+          <button @click="importDB" class="flex-1 bg-pink-600 text-white py-2 rounded active:bg-pink-700">数据库导入</button>
+        </div>
       </template>
 
       <!-- 资金记录表单 -->
@@ -271,6 +275,24 @@
           </div>
         </div>
         <button @click="confirmImportResolve" class="w-full bg-blue-600 text-white py-2 rounded mt-2">确认</button>
+      </div>
+    </div>
+
+    <!-- 数据库导入确认弹窗 -->
+    <div v-if="showDbImportModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="cancelDbImport">
+      <div class="bg-white rounded-lg p-4 max-w-sm w-full mx-4 text-sm">
+        <h3 class="font-bold mb-2">数据库导入</h3>
+        <div class="text-xs text-gray-600 mb-3">
+          <div>检测到数据库备份文件，包含以下数据：</div>
+          <div class="mt-1">- 转账记录：{{ dbImportStats.fundFlows }} 条</div>
+          <div>- 投资记录：{{ dbImportStats.investBatches }} 条</div>
+          <div>- 收益记录：{{ dbImportStats.returns }} 条</div>
+        </div>
+        <div class="text-xs text-red-500 mb-3">注意：导入会覆盖现有数据，建议先导出备份</div>
+        <div class="flex gap-2">
+          <button @click="confirmDbImport" class="flex-1 bg-blue-600 text-white py-2 rounded">确认导入</button>
+          <button @click="cancelDbImport" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded">取消</button>
+        </div>
       </div>
     </div>
 

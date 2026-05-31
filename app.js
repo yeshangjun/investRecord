@@ -283,6 +283,86 @@ createApp({
       input.click();
     };
 
+    // ========== 数据库整体导出/导入 ==========
+    // 导出：将三张表数据序列化为 JSON 文件下载
+    const exportDB = async () => {
+      const [fundFlowsData, investBatchesData, returnsData] = await Promise.all([
+        db.fundFlows.toArray(),
+        db.investBatches.toArray(),
+        db.returns.toArray()
+      ]);
+      const data = {
+        version: 9,
+        exportedAt: new Date().toISOString(),
+        fundFlows: fundFlowsData,
+        investBatches: investBatchesData,
+        returns: returnsData
+      };
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `数据库备份_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    // 数据库导入弹窗状态
+    const showDbImportModal = ref(false);
+    const dbImportStats = ref({ fundFlows: 0, investBatches: 0, returns: 0 });
+    const pendingDbImportData = ref(null);
+
+    // 取消数据库导入
+    const cancelDbImport = () => {
+      showDbImportModal.value = false;
+      pendingDbImportData.value = null;
+    };
+
+    // 确认导入数据库
+    const confirmDbImport = async () => {
+      if (!pendingDbImportData.value) return;
+      const { fundFlows, investBatches, returns } = pendingDbImportData.value;
+      await db.fundFlows.clear();
+      await db.investBatches.clear();
+      await db.returns.clear();
+      if (fundFlows.length) await db.fundFlows.bulkAdd(fundFlows);
+      if (investBatches.length) await db.investBatches.bulkAdd(investBatches);
+      if (returns.length) await db.returns.bulkAdd(returns);
+      showDbImportModal.value = false;
+      pendingDbImportData.value = null;
+      await Promise.all([loadFundFlows(), loadInvestBatches(), loadReturnRecords()]);
+    };
+
+    // 导入数据库 JSON 文件
+    const importDB = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const text = await file.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          return alert('文件格式错误，无法解析 JSON');
+        }
+        if (!data.version || !data.fundFlows || !data.investBatches || !data.returns) {
+          return alert('文件格式错误，缺少必要字段');
+        }
+        dbImportStats.value = {
+          fundFlows: data.fundFlows.length,
+          investBatches: data.investBatches.length,
+          returns: data.returns.length
+        };
+        pendingDbImportData.value = data;
+        showDbImportModal.value = true;
+      };
+      input.click();
+    };
+
     // ========== 投资打新 ==========
     // 股票名输入框聚焦时清空，以显示 datalist 所有选项
     const onFocusStockName = () => {
@@ -519,6 +599,12 @@ createApp({
       onReturnStockChange,
       submitReturn,
       deleteReturnRecord,
+      exportDB,
+      importDB,
+      showDbImportModal,
+      dbImportStats,
+      cancelDbImport,
+      confirmDbImport,
       version,
       showVersionInfo,
       showVersionModal,

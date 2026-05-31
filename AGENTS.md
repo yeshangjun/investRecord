@@ -43,5 +43,5 @@ IndexedDB via Dexie (`InvestDB`, version 9):
 
 | 优先级 | 状态 | 功能 | 说明 |
 |--------|------|------|------|
-| medium | pending | 数据库整体导入导出功能（JSON 格式） | 将 fundFlows / investBatches / returns 三张表整体导出为 JSON 备份，支持从备份恢复 |
+| medium | done | 数据库整体导入导出功能（JSON 格式） | 将 fundFlows / investBatches / returns 三张表整体导出为 JSON 备份，支持从备份恢复 |
 | medium | done | 版本号功能 | 头部标题右侧显示版本号，点击弹出 readme.txt 说明 |
