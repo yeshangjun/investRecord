@@ -13,7 +13,7 @@ createApp({
   setup() {
 
     // ========== 全局状态 ==========
-    const version = '1.0.0';                                  // 当前版本号
+    const version = '1.1.0';                                  // 当前版本号
     const showVersionModal = ref(false);                      // 版本说明弹窗显示状态
     const versionInfo = ref('');                              // 版本说明文本内容
     const fundFlows = ref([]);                               // 所有转账记录（内存缓存）
