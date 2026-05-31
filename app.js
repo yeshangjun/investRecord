@@ -322,7 +322,10 @@ createApp({
     // 确认导入数据库
     const confirmDbImport = async () => {
       if (!pendingDbImportData.value) return;
-      const { fundFlows, investBatches, returns } = pendingDbImportData.value;
+      const raw = pendingDbImportData.value;
+      const fundFlows = JSON.parse(JSON.stringify(raw.fundFlows));
+      const investBatches = JSON.parse(JSON.stringify(raw.investBatches));
+      const returns = JSON.parse(JSON.stringify(raw.returns));
       await db.fundFlows.clear();
       await db.investBatches.clear();
       await db.returns.clear();
@@ -357,7 +360,8 @@ createApp({
           investBatches: data.investBatches.length,
           returns: data.returns.length
         };
-        pendingDbImportData.value = data;
+        // 深拷贝以剥离 Vue 响应式代理，避免 IndexedDB structured clone 失败
+        pendingDbImportData.value = JSON.parse(JSON.stringify(data));
         showDbImportModal.value = true;
       };
       input.click();
