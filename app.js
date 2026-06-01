@@ -21,7 +21,7 @@ createApp({
     const today = () => new Date().toISOString().slice(0, 10);  // 返回今天日期字符串 YYYY-MM-DD
 
     // 转账表单：默认从金珠丹转给叶尚军
-    const fundFlowForm = ref({ from: '金珠丹', to: '叶尚军', amount: null, date: today() });
+    const fundFlowForm = ref({ from: '金珠丹', to: '叶尚军', amount: null, date: today(), remark: '' });
 
     // 资金记录 tab：选中的查看对象，null 表示未选择任何人
     const selectedPerson = ref(null);
@@ -124,11 +124,13 @@ createApp({
     // ========== 转账记录 CRUD ==========
     // 添加转账记录
     const addFundFlow = async () => {
-      const { from, to, amount } = fundFlowForm.value;
+      const { from, to, amount, remark } = fundFlowForm.value;
       if (!amount) return alert('请填写金额');
-      await db.fundFlows.add({ from, to, amount, date: fundFlowForm.value.date });
+      const record = { from, to, amount, date: fundFlowForm.value.date };
+      if (remark) record.remark = remark;
+      await db.fundFlows.add(record);
       // 重置表单默认值（从金珠丹→叶尚军）
-      fundFlowForm.value = { from: '金珠丹', to: '叶尚军', amount: null, date: today() };
+      fundFlowForm.value = { from: '金珠丹', to: '叶尚军', amount: null, date: today(), remark: '' };
       await loadFundFlows();
     };
 
