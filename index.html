@@ -66,10 +66,10 @@
             <option v-for="p in persons" :key="p" :value="p">{{ p }}</option>
           </select>
         </div>
-        <div class="flex gap-2">
-          <input v-model.number="fundFlowForm.amount" type="number" placeholder="金额（万元）" class="border p-2 rounded w-24">
-          <input v-model="fundFlowForm.remark" placeholder="备注" class="border p-2 rounded flex-1">
-          <input v-model="fundFlowForm.date" type="date" class="border p-2 rounded w-36">
+        <div class="flex gap-2 items-center">
+          <input v-model.number="fundFlowForm.amount" type="number" placeholder="金额" class="border p-2 rounded w-20">
+          <input v-model="fundFlowForm.remark" placeholder="备注" class="border p-2 rounded w-24 shrink-0">
+          <input v-model="fundFlowForm.date" type="date" class="border p-2 rounded w-28">
         </div>
         <button @click="addFundFlow" class="w-full bg-blue-600 text-white py-2 rounded active:bg-blue-700">记一笔</button>
         <div class="flex gap-2">
