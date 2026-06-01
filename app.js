@@ -13,7 +13,7 @@ createApp({
   setup() {
 
     // ========== 全局状态 ==========
-    const version = '1.1.4';                                  // 当前版本号
+    const version = '1.1.5';                                  // 当前版本号
     const showVersionModal = ref(false);                      // 版本说明弹窗显示状态
     const versionInfo = ref('');                              // 版本说明文本内容
     const fundFlows = ref([]);                               // 所有转账记录（内存缓存）
@@ -70,11 +70,12 @@ createApp({
       return Math.max(0, (investTotalAmount.value || 0) - others);
     });
 
-    // 监听总金额或其他金额变化时，自动更新金珠丹的投资额（ amounts[0] ）
-    watch([investTotalAmount, () => investForm.value.amounts], () => {
-      const others = investForm.value.amounts.slice(1).reduce((s, a) => s + (a || 0), 0);
-      investForm.value.amounts[0] = Math.max(0, (investTotalAmount.value || 0) - others);
-    }, { immediate: true });
+    // 非金珠丹金额变化时，自动计算 amounts[0] 使各人金额之和等于手动设置的总金额
+    watch(() => investForm.value.amounts.slice(1), () => {
+      const total = investTotalAmount.value || 0;
+      const othersSum = investForm.value.amounts.slice(1).reduce((s, a) => s + (a || 0), 0);
+      investForm.value.amounts[0] = Math.max(0, total - othersSum);
+    }, { deep: true });
 
     // ========== 收益表单状态 ==========
     // date 日期；stockName 股票名（下拉选择已存在股票）；sales 卖出记录列表 [{person, shares, gain}]
@@ -86,6 +87,11 @@ createApp({
     // ========== 计算属性 ==========
     // 当前投资表单的总金额（展示用）
     const totalInvestAmount = computed(() => investForm.value.amounts.reduce((s, a) => s + (a || 0), 0));
+
+    // 转账记录列表（排除打新造成的本金增加记录）
+    const transferRecords = computed(() => fundFlows.value.filter(f => !(f.remark && f.remark.startsWith('北交打新:'))));
+
+    // ========== 收益表单状态 ==========
 
     // 从所有打新批次提取不重复的股票名列表（去重），供两个 tab 的下拉框使用
     const stockNameList = computed(() => [...new Set(investBatches.value.map(b => b.stockName).filter(Boolean))]);
@@ -119,12 +125,6 @@ createApp({
         return { person: d.person, investment: d.amount, gain: averageGain.value * d.amount, settlement: averageGain.value * d.amount - personGainFromSales(d.person) };
       });
     });
-
-    // ========== 导入解析弹窗状态 ==========
-    // 当 CSV 中出现人员列表中不存在的名字时，弹出模态框让用户选择"新增"或"合并到已有人员"
-    const showImportModal = ref(false);
-    const importUnknownNames = ref([]);                     // 不认识的名字列表 [{name, action, mergeTarget}]
-    const importPendingResolve = ref(null);                 // Promise 的 resolve/reject 用于等待弹窗确认
 
     // ========== 资金记录计算 ==========
     // 根据 selectedPerson 筛选该人的转账记录并计算累计余额
@@ -217,112 +217,6 @@ createApp({
       await db.fundFlows.update(editingFundFlowId.value, { from, to, date, amount, remark: remark || null });
       editingFundFlowId.value = null;
       await loadFundFlows();
-    };
-
-    // ========== 导出转账记录 CSV ==========
-    // 生成 UTF-8 BOM（\uFEFF）使 Excel 正确识别中文
-    const exportFundFlows = async () => {
-      const flows = await db.fundFlows.toArray();
-      const header = '日期,金额,转出人,转入人';
-      const rows = flows.map(f => `${f.date || ''},${f.amount},${f.from},${f.to}`);
-      const csv = [header, ...rows].join('\n');
-      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `转账记录_${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    };
-
-    // ========== 导入转账记录 CSV ==========
-    // CSV 格式：日期,金额,转出人,转入人（第一行是表头）
-    // 不认识的人名会弹出模态框让用户选择：新增为正式人员 或 合并到已有人员（remark 记录原名）
-    const resolveName = (name) => {
-      const found = importUnknownNames.value.find(u => u.name === name);
-      if (!found || found.action === 'add') return { name };        // 新增：直接用原名
-      return { name: found.mergeTarget, remark: name };           // 合并：remark 记录原名
-    };
-
-    // 用户在弹窗中确认了名称解析方案
-    const confirmImportResolve = () => {
-      showImportModal.value = false;
-      if (importPendingResolve.value) {
-        importPendingResolve.value.resolve();
-        importPendingResolve.value = null;
-      }
-    };
-
-    // 用户在弹窗中取消了导入
-    const cancelImportResolve = () => {
-      showImportModal.value = false;
-      if (importPendingResolve.value) {
-        importPendingResolve.value.reject();
-        importPendingResolve.value = null;
-      }
-    };
-
-    // 执行 CSV 导入
-    const importFundFlows = async () => {
-      const clearFirst = confirm('是否清空当前记录？');
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.csv';
-      input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const text = await file.text();
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-        const dataLines = lines.slice(1);                        // 跳过表头
-        let records = dataLines.map(line => {
-          const parts = line.split(',');
-          if (parts.length < 4) return null;
-          const [date, amountStr, from, to] = parts.map(s => s.trim());
-          const amount = parseFloat(amountStr);
-          if (isNaN(amount)) return null;
-          return { date, amount, from, to };
-        }).filter(Boolean);
-        if (records.length === 0) return alert('未找到有效记录');
-
-        // 检查是否有不认识的人名
-        const allNames = new Set(records.flatMap(r => [r.from, r.to]));
-        const unknownNames = [...allNames].filter(n => !persons.value.includes(n));
-
-        // 有不认识的名字，弹出模态框等待用户决策
-        if (unknownNames.length > 0) {
-          try {
-            await new Promise((resolve, reject) => {
-              importPendingResolve.value = { resolve, reject };
-              importUnknownNames.value = unknownNames.map(n => ({ name: n, action: 'add', mergeTarget: persons.value[0] }));
-              showImportModal.value = true;
-            });
-          } catch {
-            importUnknownNames.value = [];
-            return;
-          }
-        }
-
-        // 应用人名解析（新增或合并）
-        records = records.map(r => {
-          const fromR = resolveName(r.from);
-          const toR = resolveName(r.to);
-          const remark = [fromR.remark, toR.remark].filter(Boolean).join('; ') || null;
-          return { ...r, from: fromR.name, to: toR.name, remark };
-        });
-
-        // 新增人员持久化到 localStorage
-        const newPersons = importUnknownNames.value.filter(u => u.action === 'add').map(u => u.name);
-        if (newPersons.length > 0) {
-          newPersons.forEach(n => { if (!persons.value.includes(n)) persons.value.push(n); });
-          savePersons();
-        }
-
-        importUnknownNames.value = [];
-        if (clearFirst) await db.fundFlows.clear();
-        await db.fundFlows.bulkAdd(records);
-        await loadFundFlows();
-      };
-      input.click();
     };
 
     // ========== 数据库整体导出/导入 ==========
@@ -434,6 +328,7 @@ createApp({
       }
       investForm.value.stockPrice = recent.stockPrice || null;
       investForm.value.date = recent.date || today();
+      investTotalAmount.value = recent.total || 0;
       investForm.value.amounts = persons.value.map(p => {
         const d = recent.details.find(r => r.person === p);
         return d ? d.amount : 0;
@@ -480,6 +375,7 @@ createApp({
         await db.investBatches.add({ date, stockName, stockPrice, details, total });
       }
       // 重置表单
+      investTotalAmount.value = 0;
       investForm.value = { date: today(), stockName: '', stockPrice: null, amounts: persons.value.map(p => 0), shares: persons.value.map(p => 0) };
       await loadInvestBatches();
     };
@@ -604,6 +500,7 @@ createApp({
     // setup() 返回的所有变量和函数将暴露给 index.html 中的模板表达式
     return {
       fundFlows,
+      transferRecords,
       deleteFundFlow,
       activeTab,
       fundFlowForm,
@@ -617,12 +514,6 @@ createApp({
       deletePersonName,
       confirmDeletePerson,
       personFundRecords,
-      exportFundFlows,
-      importFundFlows,
-      showImportModal,
-      importUnknownNames,
-      confirmImportResolve,
-      cancelImportResolve,
       editingFundFlowId,
       editForm,
       startEditFundFlow,
