@@ -13,7 +13,7 @@ createApp({
   setup() {
 
     // ========== 全局状态 ==========
-    const version = '1.1.2';                                  // 当前版本号
+    const version = '1.1.3';                                  // 当前版本号
     const showVersionModal = ref(false);                      // 版本说明弹窗显示状态
     const versionInfo = ref('');                              // 版本说明文本内容
     const fundFlows = ref([]);                               // 所有转账记录（内存缓存）
@@ -31,6 +31,35 @@ createApp({
     const savedPersons = localStorage.getItem('investPersons');
     if (savedPersons) persons.value = JSON.parse(savedPersons);
     const savePersons = () => localStorage.setItem('investPersons', JSON.stringify(persons.value));
+
+    // ========== 新增人员弹窗 ==========
+    const showAddPersonModal = ref(false);
+    const newPersonName = ref('');
+
+    const confirmAddPerson = () => {
+      const name = newPersonName.value.trim();
+      if (!name) return alert('请输入姓名');
+      if (persons.value.includes(name)) return alert('该人员已存在');
+      persons.value.push(name);
+      savePersons();
+      newPersonName.value = '';
+      showAddPersonModal.value = false;
+    };
+
+    // ========== 删除人员弹窗 ==========
+    const showDeletePersonModal = ref(false);
+    const deletePersonName = ref('');
+
+    const confirmDeletePerson = () => {
+      const name = deletePersonName.value;
+      if (!name) return alert('请选择要删除的人员');
+      if (!confirm(`确定删除人员"${name}"？`)) return;
+      persons.value = persons.value.filter(p => p !== name);
+      savePersons();
+      if (selectedPerson.value === name) selectedPerson.value = null;
+      deletePersonName.value = '';
+      showDeletePersonModal.value = false;
+    };
 
     // ========== 投资表单状态 ==========
     // date 日期；stockName 股票名；stockPrice 发行价；amounts 每人投资金额；shares 每人中签股数
@@ -581,6 +610,12 @@ createApp({
       addFundFlow,
       persons,
       selectedPerson,
+      showAddPersonModal,
+      newPersonName,
+      confirmAddPerson,
+      showDeletePersonModal,
+      deletePersonName,
+      confirmDeletePerson,
       personFundRecords,
       exportFundFlows,
       importFundFlows,

@@ -90,7 +90,9 @@
       <!-- 资金记录表单 -->
       <template v-if="activeTab==='资金记录'">
         <div class="flex flex-wrap gap-2">
-          <button v-for="p in persons" :key="p" @click="selectedPerson=p" class="flex-1 py-2 rounded text-sm font-medium" :class="selectedPerson===p?'bg-blue-600 text-white':'bg-gray-200 text-gray-700'">{{ p }}</button>
+          <button v-for="p in persons" :key="p" @click="selectedPerson=p" class="w-[calc(25%-0.5rem)] py-2 rounded text-sm font-medium text-center" :class="selectedPerson===p?'bg-blue-600 text-white':'bg-gray-200 text-gray-700'">{{ p }}</button>
+          <button @click="showAddPersonModal=true" class="w-[calc(25%-0.5rem)] py-2 rounded text-sm font-medium bg-green-600 text-white">+</button>
+          <button @click="showDeletePersonModal=true" class="w-[calc(25%-0.5rem)] py-2 rounded text-sm font-medium bg-red-600 text-white">-</button>
         </div>
       </template>
 
@@ -298,6 +300,33 @@
         <div class="flex gap-2">
           <button @click="confirmDbImport" class="flex-1 bg-blue-600 text-white py-2 rounded">确认导入</button>
           <button @click="cancelDbImport" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新增人员弹窗 -->
+    <div v-if="showAddPersonModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showAddPersonModal=false">
+      <div class="bg-white rounded-lg p-4 max-w-sm w-full mx-4 text-sm">
+        <h3 class="font-bold mb-3">新增人员</h3>
+        <input v-model="newPersonName" placeholder="请输入姓名" class="border p-2 rounded w-full mb-3" @keyup.enter="confirmAddPerson">
+        <div class="flex gap-2">
+          <button @click="confirmAddPerson" class="flex-1 bg-blue-600 text-white py-2 rounded">确认</button>
+          <button @click="showAddPersonModal=false" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 删除人员弹窗 -->
+    <div v-if="showDeletePersonModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showDeletePersonModal=false">
+      <div class="bg-white rounded-lg p-4 max-w-sm w-full mx-4 text-sm">
+        <h3 class="font-bold mb-3">删除人员</h3>
+        <select v-model="deletePersonName" class="border p-2 rounded w-full mb-3">
+          <option value="" disabled>选择要删除的人员</option>
+          <option v-for="p in persons" :key="p" :value="p">{{ p }}</option>
+        </select>
+        <div class="flex gap-2">
+          <button @click="confirmDeletePerson" class="flex-1 bg-red-600 text-white py-2 rounded">确认删除</button>
+          <button @click="showDeletePersonModal=false" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded">取消</button>
         </div>
       </div>
     </div>

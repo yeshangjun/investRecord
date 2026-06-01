@@ -3,9 +3,9 @@
 Client-side new-stock (北交所打新) investment tracking PWA (Vue 3 + Tailwind + Dexie/IndexedDB).
 No build step, no backend, no package.json, no tests.
 
-## Version convention
+## Commit convention
 
-每次 git push 到 GitHub 时，版本号最后一位递增（如 1.1.0 → 1.1.1），方便识别版本。
+代码修改后不立即 commit，仅在版本号更新时统一 commit 并 push。版本号在 app.js 的 `version` 变量中管理，格式 `major.minor.patch`。
 
 ## Quick start
 
