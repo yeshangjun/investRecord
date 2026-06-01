@@ -1,4 +1,4 @@
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, watch } = Vue;
 
 // ========== 数据库层（IndexedDB via Dexie） ==========
 // 数据库名：InvestDB，版本 9
@@ -35,6 +35,17 @@ createApp({
     // ========== 投资表单状态 ==========
     // date 日期；stockName 股票名；stockPrice 发行价；amounts 每人投资金额；shares 每人中签股数
     const investForm = ref({ date: today(), stockName: '', stockPrice: null, amounts: persons.value.map(p => 0), shares: persons.value.map(p => 0) });
+    const investTotalAmount = ref(0);                         // 手动输入的投资总金额
+    const autoJinzhuAmount = computed(() => {                 // 金珠丹自动计算金额 = 总金额 - 其他几人之和
+      const others = investForm.value.amounts.slice(1).reduce((s, a) => s + (a || 0), 0);
+      return Math.max(0, (investTotalAmount.value || 0) - others);
+    });
+
+    // 监听总金额或其他金额变化时，自动更新金珠丹的投资额（ amounts[0] ）
+    watch([investTotalAmount, () => investForm.value.amounts], () => {
+      const others = investForm.value.amounts.slice(1).reduce((s, a) => s + (a || 0), 0);
+      investForm.value.amounts[0] = Math.max(0, (investTotalAmount.value || 0) - others);
+    }, { immediate: true });
 
     // ========== 收益表单状态 ==========
     // date 日期；stockName 股票名（下拉选择已存在股票）；sales 卖出记录列表 [{person, shares, gain}]
@@ -412,6 +423,7 @@ createApp({
       investBatches.value = batches;
       if (investBatches.value.length > 0) {
         const last = investBatches.value[0];
+        investTotalAmount.value = last.total || 0;
         investForm.value = {
           date: last.date || today(),
           stockName: last.stockName || '',
@@ -583,6 +595,8 @@ createApp({
       saveEditFundFlow,
       investForm,
       investBatches,
+      investTotalAmount,
+      autoJinzhuAmount,
       totalInvestAmount,
       stockNameList,
       submitInvest,

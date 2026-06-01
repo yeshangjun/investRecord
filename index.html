@@ -45,13 +45,18 @@
         </div>
         <div v-for="(p, i) in persons" :key="i" class="grid grid-cols-6 gap-1 items-center">
           <span class="text-sm text-center truncate">{{ p }}</span>
-          <input v-model.number="investForm.amounts[i]" type="number" placeholder="金额" class="border p-2 rounded w-full text-center text-sm">
+          <input v-if="i===0" v-model.number="autoJinzhuAmount" type="number" class="border p-2 rounded w-full text-center text-sm bg-gray-100" readonly>
+          <input v-else v-model.number="investForm.amounts[i]" type="number" placeholder="金额" class="border p-2 rounded w-full text-center text-sm">
           <span class="text-sm text-gray-500 text-center">万元</span>
           <span class="text-sm text-gray-500 text-center">中签</span>
           <input v-model.number="investForm.shares[i]" type="number" step="100" min="0" class="border p-2 rounded w-full text-center text-sm">
           <span class="text-sm text-gray-500 text-center">股</span>
         </div>
-        <div class="text-right font-bold text-base">投资总金额：{{ totalInvestAmount.toFixed(2) }} 万元</div>
+        <div class="flex items-center justify-end gap-2">
+          <span class="text-sm">投资总金额：</span>
+          <input v-model.number="investTotalAmount" type="number" step="0.01" class="border p-2 rounded w-28 text-right text-sm font-bold">
+          <span class="text-sm">万元</span>
+        </div>
         <button @click="submitInvest" class="w-full bg-blue-600 text-white py-2 rounded active:bg-blue-700">提交</button>
       </template>
 
