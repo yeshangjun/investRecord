@@ -7,6 +7,9 @@ No build step, no backend, no package.json, no tests.
 
 代码修改后不立即 commit，仅在版本号更新时统一 commit 并 push。版本号在 app.js 的 `version` 变量中管理，格式 `major.minor.patch`。版本更新时同步更新 readme.txt 的版本历史。
 
+**版本更新时 readme.txt 版本历史编写规则：**
+每次版本号更新前，必须先完整审查本次改动的代码（git diff），将所有主要功能变化逐一写入 readme.txt 的版本历史条目中，不得遗漏。条目应涵盖：新增功能、删除功能、逻辑修改、Bug 修复、UI 变化等全部重要改动。
+
 ## Quick start
 
 ```sh
