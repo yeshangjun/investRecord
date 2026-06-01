@@ -54,7 +54,7 @@
         </div>
         <div class="flex items-center justify-end gap-2">
           <span class="text-sm">投资总金额：</span>
-          <input v-model.number="investTotalAmount" type="number" step="0.01" class="border p-2 rounded w-28 text-right text-sm font-bold">
+          <input v-model.number="investTotalAmount" type="number" step="1" class="border p-2 rounded w-28 text-right text-sm font-bold">
           <span class="text-sm">万元</span>
         </div>
         <button @click="submitInvest" class="w-full bg-blue-600 text-white py-2 rounded active:bg-blue-700">提交</button>
@@ -78,10 +78,6 @@
         </div>
         <button @click="addFundFlow" class="w-full bg-blue-600 text-white py-2 rounded active:bg-blue-700">记一笔</button>
         <div class="flex gap-2">
-          <button @click="exportFundFlows" class="flex-1 bg-green-600 text-white py-2 rounded active:bg-green-700">导出记录</button>
-          <button @click="importFundFlows" class="flex-1 bg-orange-600 text-white py-2 rounded active:bg-orange-700">导入记录</button>
-        </div>
-        <div class="flex gap-2">
           <button @click="exportDB" class="flex-1 bg-purple-600 text-white py-2 rounded active:bg-purple-700">数据库导出</button>
           <button @click="importDB" class="flex-1 bg-pink-600 text-white py-2 rounded active:bg-pink-700">数据库导入</button>
         </div>
@@ -103,7 +99,7 @@
             <input v-model="returnForm.date" type="date" class="border p-2 rounded w-36 shrink-0">
             <select v-model="returnForm.stockName" @change="onReturnStockChange" class="border p-2 rounded flex-1 min-w-0">
               <option value="" disabled selected>选择新股名称</option>
-              <option v-for="s in stockNameList" :key="s" :value="s">{{ s }}</option>
+              <option v-for="s in stockNameOptions" :key="s.name" :value="s.name">{{ s.label }}</option>
             </select>
           </div>
           <template v-if="selectedBatch">
@@ -170,7 +166,7 @@
 
       <!-- 转账记录记录 -->
       <template v-if="activeTab==='转账记录'">
-        <div v-for="item in fundFlows" :key="item.id" class="bg-gray-50 p-3 rounded">
+        <div v-for="item in transferRecords" :key="item.id" class="bg-gray-50 p-3 rounded">
           <template v-if="editingFundFlowId === item.id">
             <div class="space-y-2">
               <div class="flex items-center gap-2">
@@ -214,7 +210,7 @@
             </div>
           </template>
         </div>
-        <div v-if="fundFlows.length===0" class="text-center text-gray-400 py-8">暂无记录</div>
+        <div v-if="transferRecords.length===0" class="text-center text-gray-400 py-8">暂无记录</div>
       </template>
 
       <!-- 资金记录列表 -->
@@ -266,24 +262,6 @@
         <div v-if="returnRecords.length===0" class="text-center text-gray-400 py-8">暂无记录</div>
       </template>
 
-    </div>
-
-    <!-- 导入解析弹窗 -->
-    <div v-if="showImportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20" @click.self="cancelImportResolve">
-      <div class="bg-white rounded-lg p-4 w-11/12 max-w-sm shadow-xl">
-        <h3 class="font-bold text-lg mb-3">发现新人员</h3>
-        <div v-for="(unk, i) in importUnknownNames" :key="i" class="mb-4 pb-2 border-b last:border-b-0">
-          <div class="font-medium text-sm mb-1">{{ unk.name }}</div>
-          <div class="flex flex-wrap gap-2 items-center">
-            <label class="text-sm whitespace-nowrap"><input type="radio" :name="'act-'+i" value="add" v-model="unk.action" class="mr-1">增加</label>
-            <label class="text-sm whitespace-nowrap flex items-center gap-1"><input type="radio" :name="'act-'+i" value="merge" v-model="unk.action">合并到</label>
-            <select v-model="unk.mergeTarget" class="border p-1 rounded text-sm" v-if="unk.action==='merge'">
-              <option v-for="p in persons" :key="p" :value="p">{{ p }}</option>
-            </select>
-          </div>
-        </div>
-        <button @click="confirmImportResolve" class="w-full bg-blue-600 text-white py-2 rounded mt-2">确认</button>
-      </div>
     </div>
 
     <!-- 数据库导入确认弹窗 -->

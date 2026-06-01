@@ -13,7 +13,7 @@ createApp({
   setup() {
 
     // ========== 全局状态 ==========
-    const version = '1.1.5';                                  // 当前版本号
+    const version = '1.1.6';                                  // 当前版本号
     const showVersionModal = ref(false);                      // 版本说明弹窗显示状态
     const versionInfo = ref('');                              // 版本说明文本内容
     const fundFlows = ref([]);                               // 所有转账记录（内存缓存）
@@ -95,6 +95,26 @@ createApp({
 
     // 从所有打新批次提取不重复的股票名列表（去重），供两个 tab 的下拉框使用
     const stockNameList = computed(() => [...new Set(investBatches.value.map(b => b.stockName).filter(Boolean))]);
+
+    // 收益tab：每只新股的累计总收益（用于下拉框显示）
+    const stockGainMap = computed(() => {
+      const map = {};
+      returnRecords.value.forEach(r => {
+        if (!map[r.stockName]) map[r.stockName] = 0;
+        map[r.stockName] += r.totalGain || 0;
+      });
+      return map;
+    });
+
+    // 收益tab：格式化后的股票名下拉选项
+    const stockNameOptions = computed(() => stockNameList.value.map(s => {
+      const gain = stockGainMap.value[s];
+      const padded = s.padEnd(4);
+      if (gain && gain !== 0) {
+        return { name: s, label: `${padded}  总收益[${gain.toFixed(2)}]元` };
+      }
+      return { name: s, label: s };
+    }));
 
     // 收益 tab：当前选中的股票对应的打新批次（用于填充卖出表单和计算人均）
     const selectedBatch = computed(() => investBatches.value.find(b => b.stockName === returnForm.value.stockName) || null);
@@ -525,6 +545,7 @@ createApp({
       autoJinzhuAmount,
       totalInvestAmount,
       stockNameList,
+      stockNameOptions,
       submitInvest,
       deleteInvestBatch,
       loadRecentInvest,
