@@ -5,7 +5,7 @@ No build step, no backend, no package.json, no tests.
 
 ## Commit convention
 
-代码修改后不立即 commit，仅在版本号更新时统一 commit 并 push。版本号在 app.js 的 `version` 变量中管理，格式 `major.minor.patch`。
+代码修改后不立即 commit，仅在版本号更新时统一 commit 并 push。版本号在 app.js 的 `version` 变量中管理，格式 `major.minor.patch`。版本更新时同步更新 readme.txt 的版本历史。
 
 ## Quick start
 
